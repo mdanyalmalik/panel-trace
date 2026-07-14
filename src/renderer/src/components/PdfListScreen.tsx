@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
+import PdfIndexStatusBadge from "./PdfIndexStatusBadge";
 import type { PdfFile } from "../../../shared/electronApi";
+import type { PdfIndexProgress } from "../../../shared/indexing";
 
 interface PdfListScreenProps {
   folderPath: string;
@@ -21,6 +23,7 @@ const PdfListScreen = ({
   onSelectPdf
 }: PdfListScreenProps): JSX.Element => {
   const [pdfs, setPdfs] = useState<PdfFile[]>([]);
+  const [indexStatuses, setIndexStatuses] = useState<Record<string, PdfIndexProgress>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,11 +33,16 @@ const PdfListScreen = ({
     setIsLoading(true);
     setError(null);
 
-    window.electronAPI
-      .listPdfs(folderPath)
-      .then((folderPdfs) => {
+    Promise.all([
+      window.electronAPI.listPdfs(folderPath),
+      window.electronAPI.getPdfIndexStatuses(folderPath)
+    ])
+      .then(([folderPdfs, statuses]) => {
         if (isMounted) {
           setPdfs(folderPdfs);
+          setIndexStatuses(
+            Object.fromEntries(statuses.map((status) => [status.pdfPath, status]))
+          );
         }
       })
       .catch((listError: unknown) => {
@@ -53,6 +61,28 @@ const PdfListScreen = ({
       isMounted = false;
     };
   }, [folderPath]);
+
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.onPdfIndexProgress((progress) => {
+      setIndexStatuses((currentStatuses) => ({
+        ...currentStatuses,
+        [progress.pdfPath]: progress
+      }));
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const retryIndex = async (pdfPath: string): Promise<void> => {
+    setError(null);
+
+    try {
+      await window.electronAPI.retryPdfIndex(pdfPath);
+    } catch (retryError) {
+      console.error("Unable to retry PDF indexing:", retryError);
+      setError("Unable to retry indexing for that PDF.");
+    }
+  };
 
   return (
     <main className="min-h-dvh w-full overflow-x-hidden bg-zinc-800 px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
@@ -91,14 +121,28 @@ const PdfListScreen = ({
           <ul className="flex flex-col gap-3" aria-label="PDF files">
             {pdfs.map((pdf) => (
               <li key={pdf.path}>
-                <button
-                  className="flex min-h-20 w-full cursor-pointer flex-col items-start gap-1.5 rounded-lg border border-zinc-600 bg-zinc-700/55 px-5 py-4 text-left text-zinc-100 shadow-sm transition duration-75 hover:-translate-y-0.5 hover:border-teal-400 hover:bg-zinc-700 hover:shadow-lg hover:shadow-zinc-950/25 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
-                  type="button"
-                  onClick={() => onSelectPdf(pdf)}
-                >
-                  <strong className="text-base font-bold">{pdf.name}</strong>
-                  <span className="break-all text-sm text-zinc-400">{pdf.path}</span>
-                </button>
+                <div className="grid gap-3 rounded-lg border border-zinc-600 bg-zinc-700/55 p-3 shadow-sm transition duration-75 hover:border-teal-400 hover:bg-zinc-700 hover:shadow-lg hover:shadow-zinc-950/25 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <button
+                    className="flex min-h-16 w-full cursor-pointer flex-col items-start gap-1.5 rounded-md px-2 py-1 text-left text-zinc-100 transition duration-75 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
+                    type="button"
+                    onClick={() => onSelectPdf(pdf)}
+                  >
+                    <strong className="text-base font-bold">{pdf.name}</strong>
+                    <span className="break-all text-sm text-zinc-400">{pdf.path}</span>
+                  </button>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <PdfIndexStatusBadge progress={indexStatuses[pdf.path] ?? null} />
+                    {indexStatuses[pdf.path]?.status === "failed" ? (
+                      <button
+                        className="cursor-pointer rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-200 transition duration-75 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-500/20 focus:outline-none focus:ring-4 focus:ring-red-300/20 active:translate-y-0"
+                        type="button"
+                        onClick={() => retryIndex(pdf.path)}
+                      >
+                        Retry
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
               </li>
             ))}
           </ul>

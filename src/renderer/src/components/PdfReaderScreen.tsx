@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
+import PdfIndexStatusBadge from "./PdfIndexStatusBadge";
+import ReaderChatPanel from "./ReaderChatPanel";
+import { loadChatHistory, saveChatHistory } from "../services/chatHistoryStore";
+import { chatService } from "../services/chatService";
+import type { ChatMessage } from "../types/chat";
 import type { PdfFile } from "../../../shared/electronApi";
+import type { PdfIndexProgress } from "../../../shared/indexing";
 import type { PageProps } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -23,9 +29,32 @@ const maxPageWidth = 1600;
 const minZoom = 50;
 const maxZoom = 200;
 const zoomStep = 10;
+const chatDefaultWidth = 360;
+const chatMinWidth = 240;
+const chatMaxWidth = 560;
+const minReaderWidth = 320;
 
 const clampZoom = (zoomValue: number): number =>
   Math.min(maxZoom, Math.max(minZoom, zoomValue));
+
+const getMaxChatWidth = (containerWidth: number): number =>
+  Math.max(chatMinWidth, Math.min(chatMaxWidth, containerWidth - minReaderWidth));
+
+const clampChatWidth = (width: number, containerWidth: number): number =>
+  Math.min(getMaxChatWidth(containerWidth), Math.max(chatMinWidth, width));
+
+const isTextInputTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT" ||
+    target.isContentEditable
+  );
+};
 
 const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => {
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
@@ -36,7 +65,18 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
   const [zoom, setZoom] = useState(100);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [chatWidth, setChatWidth] = useState(chatDefaultWidth);
+  const [isChatResizing, setIsChatResizing] = useState(false);
+  const [indexProgress, setIndexProgress] = useState<PdfIndexProgress | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadedChatPath, setLoadedChatPath] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const readerShellRef = useRef<HTMLDivElement | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
+  const chatPanelRef = useRef<HTMLDivElement | null>(null);
 
   const canGoPrevious = pageNumber > 1;
   const canGoNext = numPages !== null && pageNumber < numPages;
@@ -74,6 +114,84 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
     setZoom((currentZoom) => clampZoom(currentZoom + zoomStep));
   };
 
+  const toggleChat = (): void => {
+    setIsChatOpen((currentValue) => !currentValue);
+  };
+
+  const getChatWidthFromPointer = (clientX: number): number => {
+    const shellBounds = readerShellRef.current?.getBoundingClientRect();
+
+    if (!shellBounds) {
+      return chatWidth;
+    }
+
+    return clampChatWidth(shellBounds.right - clientX, shellBounds.width);
+  };
+
+  const startChatResize = (event: React.PointerEvent<HTMLDivElement>): void => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsChatOpen(true);
+    setIsChatResizing(true);
+    setChatWidth(getChatWidthFromPointer(event.clientX));
+  };
+
+  const resizeChat = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (!isChatResizing) {
+      return;
+    }
+
+    setChatWidth(getChatWidthFromPointer(event.clientX));
+  };
+
+  const stopChatResize = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    setIsChatResizing(false);
+  };
+
+  const sendMessage = async (): Promise<void> => {
+    const content = input.trim();
+
+    if (!content || isSending) {
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content,
+      createdAt: new Date().toISOString()
+    };
+    const nextMessages = [...messages, userMessage];
+
+    setMessages(nextMessages);
+    setInput("");
+    setChatError(null);
+    setIsSending(true);
+
+    try {
+      const response = await chatService.sendMessage({
+        messages: nextMessages,
+        documentPath: pdf.path,
+        currentPage: pageNumber
+      });
+
+      const assistantMessage = response.message;
+
+      if (assistantMessage) {
+        setMessages((currentMessages) => [...currentMessages, assistantMessage]);
+      }
+    } catch (sendError) {
+      console.error("Unable to send chat message:", sendError);
+      setChatError("The message was saved, but a response could not be requested.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -84,6 +202,14 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
     setZoom(100);
     setIsLoading(true);
     setError(null);
+    setIsChatOpen(true);
+    setIsChatResizing(false);
+    setLoadedChatPath(null);
+    setMessages(loadChatHistory(pdf.path));
+    setLoadedChatPath(pdf.path);
+    setInput("");
+    setIsSending(false);
+    setChatError(null);
 
     window.electronAPI
       .openPdf(pdf.path)
@@ -110,6 +236,61 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
   }, [pdf.path]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    window.electronAPI
+      .getPdfIndexStatus(pdf.path)
+      .then((progress) => {
+        if (isMounted) {
+          setIndexProgress(progress);
+        }
+      })
+      .catch((statusError: unknown) => {
+        console.error("Unable to load PDF index status:", statusError);
+      });
+
+    const unsubscribe = window.electronAPI.onPdfIndexProgress((progress) => {
+      if (progress.pdfPath === pdf.path) {
+        setIndexProgress(progress);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [pdf.path]);
+
+  useEffect(() => {
+    if (loadedChatPath !== pdf.path) {
+      return;
+    }
+
+    saveChatHistory(pdf.path, messages);
+  }, [loadedChatPath, messages, pdf.path]);
+
+  useEffect(() => {
+    const shellElement = readerShellRef.current;
+
+    if (!shellElement) {
+      return;
+    }
+
+    const clampCurrentChatWidth = (): void => {
+      setChatWidth((currentWidth) => clampChatWidth(currentWidth, shellElement.clientWidth));
+    };
+
+    clampCurrentChatWidth();
+
+    const resizeObserver = new ResizeObserver(clampCurrentChatWidth);
+    resizeObserver.observe(shellElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
     const updateWidth = (): void => {
       const containerWidth = readerRef.current?.clientWidth ?? maxPageWidth;
       setPageWidth(Math.max(280, Math.min(maxPageWidth, containerWidth - pagePadding)));
@@ -128,10 +309,29 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
   }, []);
 
   useEffect(() => {
+    const chatPanelElement = chatPanelRef.current;
+
+    if (!chatPanelElement) {
+      return;
+    }
+
+    if (isChatOpen) {
+      chatPanelElement.removeAttribute("inert");
+      return;
+    }
+
+    chatPanelElement.setAttribute("inert", "");
+  }, [isChatOpen]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         event.preventDefault();
         onBack();
+        return;
+      }
+
+      if (isTextInputTarget(event.target)) {
         return;
       }
 
@@ -204,9 +404,12 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
         </button>
 
         <div className="min-w-0 text-left lg:text-center">
-          <h1 className="truncate text-lg font-bold text-zinc-50 sm:text-xl lg:text-2xl">
-            {pdf.name}
-          </h1>
+          <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-center">
+            <h1 className="truncate text-lg font-bold text-zinc-50 sm:text-xl lg:text-2xl">
+              {pdf.name}
+            </h1>
+            <PdfIndexStatusBadge progress={indexProgress} />
+          </div>
           <p className="mt-1 line-clamp-2 break-all text-xs text-zinc-400 sm:text-sm">
             {pdf.path}
           </p>
@@ -266,51 +469,119 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
               {zoom}%
             </span>
           </div>
+
+          <button
+            className="cursor-pointer rounded-lg border border-teal-600/70 bg-teal-700 px-3 py-2.5 text-sm font-semibold text-white transition duration-75 hover:-translate-y-0.5 hover:bg-teal-600 focus:outline-none focus:ring-4 focus:ring-teal-400/25 active:translate-y-0 sm:px-4 sm:py-3 sm:text-base"
+            type="button"
+            onClick={toggleChat}
+            aria-expanded={isChatOpen}
+            aria-controls="reader-chat-panel"
+          >
+            {isChatOpen ? "Close Chat" : "Open Chat"}
+          </button>
         </div>
       </header>
 
-      <section
-        ref={readerRef}
-        className="mx-auto flex min-h-0 w-full flex-1 items-start justify-center overflow-auto bg-zinc-800 p-1 sm:p-2"
-        aria-label="PDF reader"
+      <div
+        ref={readerShellRef}
+        className={`mx-auto flex min-h-0 w-full max-w-[1920px] flex-1 overflow-hidden ${
+          isChatResizing ? "cursor-col-resize select-none" : ""
+        }`}
       >
-        {isLoading ? <p className="mt-16 text-zinc-400">Loading PDF...</p> : null}
-        {error ? <p className="mt-16 font-bold text-red-300">{error}</p> : null}
+        <section
+          ref={readerRef}
+          className="flex min-h-0 min-w-0 flex-1 items-start justify-center overflow-auto bg-zinc-800 p-1 sm:p-2"
+          aria-label="PDF reader"
+        >
+          {isLoading ? <p className="mt-16 text-zinc-400">Loading PDF...</p> : null}
+          {error ? <p className="mt-16 font-bold text-red-300">{error}</p> : null}
 
-        {!isLoading && !error && pdfFile ? (
-          <div
-            className="shrink-0"
-            style={{
-              width: scaledPageWidth,
-              height: scaledPageHeight
-            }}
-          >
+          {!isLoading && !error && pdfFile ? (
             <div
-              className="origin-top-left"
+              className="shrink-0"
               style={{
-                width: pageWidth,
-                transform: `scale(${zoomScale})`
+                width: scaledPageWidth,
+                height: scaledPageHeight
               }}
             >
-              <Document
-                file={pdfFile}
-                loading={<p className="mt-16 text-zinc-400">Loading pages...</p>}
-                error={<p className="mt-16 font-bold text-red-300">Unable to render this PDF.</p>}
-                onLoadSuccess={handleLoadSuccess}
-                onLoadError={handleLoadError}
+              <div
+                className="origin-top-left"
+                style={{
+                  width: pageWidth,
+                  transform: `scale(${zoomScale})`
+                }}
               >
-                <Page
-                  pageNumber={pageNumber}
-                  renderAnnotationLayer={false}
-                  renderTextLayer={false}
-                  width={pageWidth}
-                  onRenderSuccess={handlePageRenderSuccess}
-                />
-              </Document>
+                <Document
+                  file={pdfFile}
+                  loading={<p className="mt-16 text-zinc-400">Loading pages...</p>}
+                  error={
+                    <p className="mt-16 font-bold text-red-300">Unable to render this PDF.</p>
+                  }
+                  onLoadSuccess={handleLoadSuccess}
+                  onLoadError={handleLoadError}
+                >
+                  <Page
+                    pageNumber={pageNumber}
+                    renderAnnotationLayer={false}
+                    renderTextLayer={false}
+                    width={pageWidth}
+                    onRenderSuccess={handlePageRenderSuccess}
+                  />
+                </Document>
+              </div>
             </div>
+          ) : null}
+        </section>
+
+        <div
+          ref={chatPanelRef}
+          id="reader-chat-panel"
+          className={`relative h-full min-h-0 shrink-0 overflow-hidden ${
+            isChatResizing ? "" : "transition-[width,opacity] duration-200 ease-in-out"
+          } ${isChatOpen ? "opacity-100" : "pointer-events-none w-0 opacity-0"}`}
+          style={{
+            width: isChatOpen ? chatWidth : 0
+          }}
+          aria-hidden={!isChatOpen}
+        >
+          {isChatOpen ? (
+            <div
+              className="absolute inset-y-0 left-0 z-10 w-2 -translate-x-1 cursor-col-resize touch-none bg-transparent transition-colors duration-75 hover:bg-teal-400/35"
+              role="separator"
+              aria-label="Resize chat"
+              aria-orientation="vertical"
+              onPointerDown={startChatResize}
+              onPointerMove={resizeChat}
+              onPointerUp={stopChatResize}
+              onPointerCancel={stopChatResize}
+            >
+              <div
+                className={`mx-auto h-full w-px transition-colors duration-75 ${
+                  isChatResizing ? "bg-teal-300" : "bg-transparent"
+                }`}
+              />
+            </div>
+          ) : null}
+
+          <div
+            className={`h-full min-h-0 transition-transform duration-200 ease-in-out ${
+              isChatOpen ? "translate-x-0" : "translate-x-full"
+            }`}
+            style={{
+              width: chatWidth
+            }}
+          >
+            <ReaderChatPanel
+              messages={messages}
+              input={input}
+              isSending={isSending}
+              error={chatError}
+              onInputChange={setInput}
+              onSend={sendMessage}
+            />
           </div>
-        ) : null}
-      </section>
+        </div>
+      </div>
     </main>
   );
 };

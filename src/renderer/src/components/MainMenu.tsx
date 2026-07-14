@@ -1,9 +1,10 @@
 interface MainMenuProps {
   onRead: () => void;
+  onSettings: () => void;
   onExit: () => void;
 }
 
-const MainMenu = ({ onRead, onExit }: MainMenuProps): JSX.Element => (
+const MainMenu = ({ onRead, onSettings, onExit }: MainMenuProps): JSX.Element => (
   <main className="grid min-h-dvh w-full place-items-center overflow-x-hidden bg-zinc-800 px-6 py-10 text-zinc-100 sm:px-8">
     <section className="flex w-full max-w-sm flex-col items-center gap-9">
       <div className="text-center">
@@ -19,6 +20,13 @@ const MainMenu = ({ onRead, onExit }: MainMenuProps): JSX.Element => (
           onClick={onRead}
         >
           Read
+        </button>
+        <button
+          className="min-h-14 cursor-pointer rounded-lg border border-zinc-600 bg-zinc-700 px-6 text-base font-bold uppercase text-zinc-100 shadow-sm transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-600 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
+          type="button"
+          onClick={onSettings}
+        >
+          Settings
         </button>
         <button
           className="min-h-14 cursor-pointer rounded-lg border border-zinc-600 bg-zinc-700 px-6 text-base font-bold uppercase text-zinc-100 shadow-sm transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-600 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
