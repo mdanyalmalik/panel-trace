@@ -4,19 +4,23 @@ import { fileURLToPath } from "node:url";
 
 import { addFolder, getFolders, removeFolder } from "./libraryStore";
 import { listPdfs, openPdf } from "./pdfLibrary";
+import { EvidenceWindowService } from "./services/evidenceWindowService";
 import { FolderIndexingService } from "./services/folderIndexingService";
 import { IndexingQueue } from "./services/indexingQueue";
 import { getProgressForPdfs } from "./services/pageIndexStore";
 import { PdfPageRenderer } from "./services/pdfPageRenderer";
+import { searchEarlierPages } from "./services/retrievalService";
 import {
   getVoyageKeyStatus,
   removeVoyageApiKey,
   saveVoyageApiKey
 } from "./services/secureCredentialStore";
 import { testVoyageConnection } from "./services/voyageEmbeddingService";
+import type { OpenEvidenceRequest, RetrievalRequest } from "../shared/retrieval";
 
 let indexingQueue: IndexingQueue | null = null;
 let folderIndexingService: FolderIndexingService | null = null;
+let evidenceWindowService: EvidenceWindowService | null = null;
 const mainDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 const startFolderIndexing = (folderPath: string): void => {
@@ -120,6 +124,16 @@ const registerIpcHandlers = (): void => {
     folderIndexingService?.retryPdf(pdfPath)
   );
 
+  ipcMain.handle("retrieval:search-earlier-pages", (_event, request: RetrievalRequest) =>
+    searchEarlierPages(app.getPath("userData"), request)
+  );
+
+  ipcMain.handle("evidence:open-viewer", (_event, request: OpenEvidenceRequest) =>
+    evidenceWindowService?.openEvidence(request)
+  );
+
+  ipcMain.handle("evidence:get-state", () => evidenceWindowService?.getState() ?? null);
+
   ipcMain.on("app:exit", () => {
     app.quit();
   });
@@ -131,6 +145,7 @@ app.whenReady().then(() => {
     app.getPath("userData"),
     indexingQueue
   );
+  evidenceWindowService = new EvidenceWindowService(app.getPath("userData"), mainDirectory);
   registerIpcHandlers();
   createWindow();
   startSavedFolderIndexing();

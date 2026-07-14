@@ -8,6 +8,7 @@ import { chatService } from "../services/chatService";
 import type { ChatMessage } from "../types/chat";
 import type { PdfFile } from "../../../shared/electronApi";
 import type { PdfIndexProgress } from "../../../shared/indexing";
+import type { RetrievalResult } from "../../../shared/retrieval";
 import type { PageProps } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -16,6 +17,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 interface PdfReaderScreenProps {
+  folderPath: string;
   pdf: PdfFile;
   onBack: () => void;
 }
@@ -56,7 +58,7 @@ const isTextInputTarget = (target: EventTarget | null): boolean => {
   );
 };
 
-const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => {
+const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX.Element => {
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [numPages, setNumPages] = useState<number | null>(null);
@@ -175,8 +177,10 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
     try {
       const response = await chatService.sendMessage({
         messages: nextMessages,
-        documentPath: pdf.path,
-        currentPage: pageNumber
+        folderPath,
+        currentPdfPath: pdf.path,
+        currentPage: pageNumber,
+        query: content
       });
 
       const assistantMessage = response.message;
@@ -189,6 +193,23 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
       setChatError("The message was saved, but a response could not be requested.");
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const openEvidence = async (result: RetrievalResult): Promise<void> => {
+    setChatError(null);
+
+    try {
+      await window.electronAPI.openEvidenceViewer({
+        sourceFolderPath: folderPath,
+        sourcePdfPath: pdf.path,
+        sourceCurrentPage: pageNumber,
+        targetPdfPath: result.pdfPath,
+        targetPage: result.pageNumber
+      });
+    } catch (openError) {
+      console.error("Unable to open evidence viewer:", openError);
+      setChatError("Unable to open that evidence page.");
     }
   };
 
@@ -576,7 +597,9 @@ const PdfReaderScreen = ({ pdf, onBack }: PdfReaderScreenProps): JSX.Element => 
               input={input}
               isSending={isSending}
               error={chatError}
+              isSearching={isSending}
               onInputChange={setInput}
+              onOpenEvidence={openEvidence}
               onSend={sendMessage}
             />
           </div>

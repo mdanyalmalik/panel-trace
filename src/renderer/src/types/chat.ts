@@ -1,16 +1,45 @@
+import type { RetrievalResult } from "../../../shared/retrieval";
+
 export type ChatRole = "user" | "assistant" | "system";
 
-export interface ChatMessage {
+interface BaseChatMessage {
   id: string;
   role: ChatRole;
   content: string;
   createdAt: string;
 }
 
+export interface UserChatMessage extends BaseChatMessage {
+  role: "user";
+}
+
+export interface SystemChatMessage extends BaseChatMessage {
+  role: "system";
+}
+
+export interface AssistantTextChatMessage extends BaseChatMessage {
+  role: "assistant";
+  kind?: "text";
+}
+
+export interface EvidenceChatMessage extends BaseChatMessage {
+  role: "assistant";
+  kind: "evidence-results";
+  evidence: RetrievalResult[];
+}
+
+export type ChatMessage =
+  | UserChatMessage
+  | SystemChatMessage
+  | AssistantTextChatMessage
+  | EvidenceChatMessage;
+
 export interface ChatRequest {
   messages: ChatMessage[];
-  documentPath: string;
+  folderPath: string;
+  currentPdfPath: string;
   currentPage: number;
+  query: string;
 }
 
 export interface ChatResponse {

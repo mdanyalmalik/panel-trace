@@ -27,6 +27,10 @@ interface EmbedPageResult {
   };
 }
 
+interface EmbedTextResult {
+  embedding: number[];
+}
+
 export class VoyageEmbeddingError extends Error {
   code: IndexingErrorCode;
   retryable: boolean;
@@ -86,8 +90,8 @@ const classifyStatus = (status: number): VoyageEmbeddingError => {
 
 const requestVoyageEmbedding = async (
   apiKey: string,
-  pageImageDataUrl: string
-): Promise<EmbedPageResult> => {
+  body: unknown
+): Promise<VoyageEmbeddingResponse> => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
 
@@ -98,20 +102,7 @@ const requestVoyageEmbedding = async (
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        inputs: [
-          {
-            content: [
-              {
-                type: "image_base64",
-                image_base64: pageImageDataUrl
-              }
-            ]
-          }
-        ],
-        model: EMBEDDING_MODEL,
-        input_type: "document"
-      }),
+      body: JSON.stringify(body),
       signal: controller.signal
     });
 
@@ -119,24 +110,7 @@ const requestVoyageEmbedding = async (
       throw classifyStatus(response.status);
     }
 
-    const parsedResponse = (await response.json()) as VoyageEmbeddingResponse;
-    const embedding = getEmbeddingFromResponse(parsedResponse);
-
-    if (!embedding || embedding.length !== EMBEDDING_DIMENSIONS) {
-      throw new VoyageEmbeddingError(
-        "invalid-embedding",
-        "The embedding service returned an invalid vector."
-      );
-    }
-
-    return {
-      embedding,
-      usage: {
-        totalTokens: parsedResponse.usage?.total_tokens ?? null,
-        textTokens: parsedResponse.usage?.text_tokens ?? null,
-        imagePixels: parsedResponse.usage?.image_pixels ?? null
-      }
-    };
+    return (await response.json()) as VoyageEmbeddingResponse;
   } catch (error) {
     if (error instanceof VoyageEmbeddingError) {
       throw error;
@@ -150,6 +124,73 @@ const requestVoyageEmbedding = async (
   } finally {
     clearTimeout(timeout);
   }
+};
+
+const requestPageEmbedding = async (
+  apiKey: string,
+  pageImageDataUrl: string
+): Promise<EmbedPageResult> => {
+  const parsedResponse = await requestVoyageEmbedding(apiKey, {
+    inputs: [
+      {
+        content: [
+          {
+            type: "image_base64",
+            image_base64: pageImageDataUrl
+          }
+        ]
+      }
+    ],
+    model: EMBEDDING_MODEL,
+    input_type: "document"
+  });
+  const embedding = getEmbeddingFromResponse(parsedResponse);
+
+  if (!embedding || embedding.length !== EMBEDDING_DIMENSIONS) {
+    throw new VoyageEmbeddingError(
+      "invalid-embedding",
+      "The embedding service returned an invalid vector."
+    );
+  }
+
+  return {
+    embedding,
+    usage: {
+      totalTokens: parsedResponse.usage?.total_tokens ?? null,
+      textTokens: parsedResponse.usage?.text_tokens ?? null,
+      imagePixels: parsedResponse.usage?.image_pixels ?? null
+    }
+  };
+};
+
+const requestTextQueryEmbedding = async (
+  apiKey: string,
+  query: string
+): Promise<EmbedTextResult> => {
+  const parsedResponse = await requestVoyageEmbedding(apiKey, {
+    inputs: [
+      {
+        content: [
+          {
+            type: "text",
+            text: query
+          }
+        ]
+      }
+    ],
+    model: EMBEDDING_MODEL,
+    input_type: "query"
+  });
+  const embedding = getEmbeddingFromResponse(parsedResponse);
+
+  if (!embedding || embedding.length !== EMBEDDING_DIMENSIONS) {
+    throw new VoyageEmbeddingError(
+      "invalid-embedding",
+      "The embedding service returned an invalid vector."
+    );
+  }
+
+  return { embedding };
 };
 
 export const embedPageImage = async (
@@ -167,7 +208,39 @@ export const embedPageImage = async (
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await requestVoyageEmbedding(apiKey, pageImageDataUrl);
+      return await requestPageEmbedding(apiKey, pageImageDataUrl);
+    } catch (error) {
+      if (
+        !(error instanceof VoyageEmbeddingError) ||
+        !error.retryable ||
+        attempt === maxAttempts
+      ) {
+        throw error;
+      }
+
+      await sleep(400 * 2 ** (attempt - 1));
+    }
+  }
+
+  throw new VoyageEmbeddingError("voyage-provider-error", "Connection failed.");
+};
+
+export const embedQueryText = async (
+  userDataPath: string,
+  query: string
+): Promise<EmbedTextResult> => {
+  const apiKey = await loadVoyageApiKey(userDataPath);
+
+  if (!apiKey) {
+    throw new VoyageEmbeddingError(
+      "missing-api-key",
+      "Voyage API key is not configured."
+    );
+  }
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await requestTextQueryEmbedding(apiKey, query);
     } catch (error) {
       if (
         !(error instanceof VoyageEmbeddingError) ||
@@ -199,7 +272,7 @@ export const testVoyageConnection = async (
   }
 
   try {
-    await requestVoyageEmbedding(
+    await requestPageEmbedding(
       keyToTest,
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
     );

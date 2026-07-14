@@ -261,6 +261,79 @@ export const getPageEmbeddings = async (
     }));
 };
 
+export const getReadyDocumentByPath = async (
+  userDataPath: string,
+  pdfPath: string
+): Promise<IndexedPdfRecord | null> => {
+  const data = await readIndexData(userDataPath);
+  const normalizedPdfPath = normalizePath(pdfPath);
+  const records = data.documents
+    .filter(
+      (record) =>
+        normalizePath(record.pdfPath) === normalizedPdfPath &&
+        record.status === "ready" &&
+        record.model === EMBEDDING_MODEL &&
+        record.dimensions === EMBEDDING_DIMENSIONS &&
+        record.rendererVersion === PAGE_RENDERER_VERSION &&
+        record.indexVersion === INDEX_VERSION
+    )
+    .sort((first, second) => second.updatedAt.localeCompare(first.updatedAt));
+
+  return records[0] ?? null;
+};
+
+export const getPageEmbedding = async (
+  userDataPath: string,
+  documentId: string,
+  pageNumber: number
+): Promise<PageEmbeddingRecord | null> => {
+  const data = await readIndexData(userDataPath);
+  const storedEmbedding = data.pageEmbeddings.find(
+    (embedding) =>
+      embedding.documentId === documentId && embedding.pageNumber === pageNumber
+  );
+
+  if (!storedEmbedding) {
+    return null;
+  }
+
+  return {
+    documentId: storedEmbedding.documentId,
+    pageNumber: storedEmbedding.pageNumber,
+    embedding: deserializeEmbedding(storedEmbedding.embeddingBase64)
+  };
+};
+
+export const getReadyPageEmbeddingsForDocuments = async (
+  userDataPath: string,
+  documentIds: string[]
+): Promise<PageEmbeddingRecord[]> => {
+  const data = await readIndexData(userDataPath);
+  const wantedDocumentIds = new Set(documentIds);
+  const readyDocumentIds = new Set(
+    data.documents
+      .filter(
+        (record) =>
+          wantedDocumentIds.has(record.documentId) &&
+          record.status === "ready" &&
+          record.model === EMBEDDING_MODEL &&
+          record.dimensions === EMBEDDING_DIMENSIONS &&
+          record.rendererVersion === PAGE_RENDERER_VERSION &&
+          record.indexVersion === INDEX_VERSION
+      )
+      .map((record) => record.documentId)
+  );
+
+  return data.pageEmbeddings
+    .filter((embedding) => readyDocumentIds.has(embedding.documentId))
+    .sort((first, second) => first.pageNumber - second.pageNumber)
+    .map((embedding) => ({
+      documentId: embedding.documentId,
+      pageNumber: embedding.pageNumber,
+      embedding: deserializeEmbedding(embedding.embeddingBase64)
+    }));
+};
+
 export const getProgressForPdfs = async (
   userDataPath: string,
   pdfPaths: string[]

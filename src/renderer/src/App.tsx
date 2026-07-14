@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import EvidenceViewerScreen from "./components/EvidenceViewerScreen";
 import LibraryScreen from "./components/LibraryScreen";
 import MainMenu from "./components/MainMenu";
 import PdfListScreen from "./components/PdfListScreen";
@@ -14,6 +15,10 @@ const screenExitDurationMs = 120;
 const screenEnterDurationMs = 170;
 
 const App = (): JSX.Element => {
+  if (window.location.hash === "#evidence") {
+    return <EvidenceViewerScreen />;
+  }
+
   const [screen, setScreen] = useState<Screen>("menu");
   const [transitionPhase, setTransitionPhase] = useState<TransitionPhase>("idle");
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -92,7 +97,13 @@ const App = (): JSX.Element => {
     }
 
     if (screen === "reader" && selectedFolder && selectedPdf) {
-      return <PdfReaderScreen pdf={selectedPdf} onBack={() => navigateTo("pdf-list")} />;
+      return (
+        <PdfReaderScreen
+          folderPath={selectedFolder}
+          pdf={selectedPdf}
+          onBack={() => navigateTo("pdf-list")}
+        />
+      );
     }
 
     return (

@@ -30,6 +30,10 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.removeListener("indexing:progress", listener);
     };
   },
+  searchEarlierPages: (request) =>
+    ipcRenderer.invoke("retrieval:search-earlier-pages", request),
+  openEvidenceViewer: (request) => ipcRenderer.invoke("evidence:open-viewer", request),
+  getEvidenceViewerState: () => ipcRenderer.invoke("evidence:get-state"),
   exitApp: () => {
     ipcRenderer.send("app:exit");
   }

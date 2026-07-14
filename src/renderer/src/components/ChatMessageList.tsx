@@ -1,17 +1,24 @@
 import { useEffect, useRef } from "react";
 
 import type { ChatMessage } from "../types/chat";
+import type { RetrievalResult } from "../../../shared/retrieval";
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
+  isSearching: boolean;
+  onOpenEvidence: (result: RetrievalResult) => void;
 }
 
-const ChatMessageList = ({ messages }: ChatMessageListProps): JSX.Element => {
+const ChatMessageList = ({
+  messages,
+  isSearching,
+  onOpenEvidence
+}: ChatMessageListProps): JSX.Element => {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
+  }, [messages, isSearching]);
 
   return (
     <div
@@ -35,6 +42,37 @@ const ChatMessageList = ({ messages }: ChatMessageListProps): JSX.Element => {
 
           const isUser = message.role === "user";
 
+          if (message.role === "assistant" && message.kind === "evidence-results") {
+            return (
+              <div key={message.id} className="flex max-w-full justify-start">
+                <div className="max-w-[92%] rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-3 text-sm text-zinc-100 shadow-sm">
+                  <p className="mb-3 font-bold text-zinc-100">
+                    {message.evidence.length > 0 ? "Relevant earlier pages" : message.content}
+                  </p>
+                  {message.evidence.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      {message.evidence.map((result) => (
+                        <button
+                          key={result.id}
+                          className="cursor-pointer rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-left transition duration-75 hover:-translate-y-0.5 hover:border-teal-400 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-teal-400/20 active:translate-y-0"
+                          type="button"
+                          onClick={() => onOpenEvidence(result)}
+                        >
+                          <span className="block font-semibold text-zinc-100">
+                            {result.pdfName} - Page {result.pageNumber}
+                          </span>
+                          <span className="mt-1 block text-xs font-medium text-zinc-400">
+                            Similarity: {result.score.toFixed(3)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div
               key={message.id}
@@ -52,6 +90,13 @@ const ChatMessageList = ({ messages }: ChatMessageListProps): JSX.Element => {
             </div>
           );
         })}
+        {isSearching ? (
+          <div className="flex max-w-full justify-start">
+            <p className="max-w-[88%] rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm leading-6 text-zinc-400 shadow-sm">
+              Searching earlier pages...
+            </p>
+          </div>
+        ) : null}
         <div ref={bottomRef} aria-hidden="true" />
       </div>
     </div>
