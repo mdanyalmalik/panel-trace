@@ -26,6 +26,8 @@ const EvidenceViewerScreen = (): JSX.Element => {
   const [viewerState, setViewerState] = useState<EvidenceViewerState | null>(null);
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [isEditingPageNumber, setIsEditingPageNumber] = useState(false);
+  const [pageNumberInput, setPageNumberInput] = useState("1");
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageWidth, setPageWidth] = useState(720);
   const [pageHeight, setPageHeight] = useState<number | null>(null);
@@ -62,6 +64,34 @@ const EvidenceViewerScreen = (): JSX.Element => {
     });
   };
 
+  const jumpToPage = (nextPage: number): void => {
+    if (!numPages) {
+      return;
+    }
+
+    setPageNumber(Math.min(numPages, Math.max(1, nextPage)));
+  };
+
+  const startPageNumberEdit = (): void => {
+    setPageNumberInput(String(pageNumber));
+    setIsEditingPageNumber(true);
+  };
+
+  const commitPageNumberEdit = (): void => {
+    const nextPage = Number.parseInt(pageNumberInput, 10);
+
+    if (Number.isFinite(nextPage)) {
+      jumpToPage(nextPage);
+    }
+
+    setIsEditingPageNumber(false);
+  };
+
+  const cancelPageNumberEdit = (): void => {
+    setPageNumberInput(String(pageNumber));
+    setIsEditingPageNumber(false);
+  };
+
   const zoomOut = (): void => {
     setZoom((currentZoom) => clampZoom(currentZoom - zoomStep));
   };
@@ -88,6 +118,7 @@ const EvidenceViewerScreen = (): JSX.Element => {
 
         setViewerState(state);
         setPageNumber(state.initialPage);
+        setPageNumberInput(String(state.initialPage));
         return window.electronAPI.openPdf(state.pdfPath);
       })
       .then((data) => {
@@ -205,9 +236,46 @@ const EvidenceViewerScreen = (): JSX.Element => {
           <h1 className="truncate text-lg font-bold text-zinc-50 sm:text-xl">
             {viewerState?.pdfName ?? "Evidence"}
           </h1>
-          <p className="mt-1 text-sm font-semibold text-zinc-400">
-            Page {pageNumber} of {numPages ?? "-"}
-          </p>
+          <div className="mt-1 flex justify-start lg:justify-center">
+            {isEditingPageNumber ? (
+              <label className="flex items-center justify-center gap-1 text-sm font-semibold text-zinc-400">
+                <span>Page</span>
+                <input
+                  className="h-8 w-16 rounded-md border border-teal-400 bg-zinc-950 px-2 text-center text-zinc-100 outline-none focus:ring-4 focus:ring-teal-400/20"
+                  type="number"
+                  min={1}
+                  max={numPages ?? undefined}
+                  value={pageNumberInput}
+                  autoFocus
+                  onChange={(event) => setPageNumberInput(event.target.value)}
+                  onBlur={commitPageNumberEdit}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      commitPageNumberEdit();
+                      return;
+                    }
+
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelPageNumberEdit();
+                    }
+                  }}
+                />
+                <span>of {numPages ?? "-"}</span>
+              </label>
+            ) : (
+              <button
+                className="cursor-pointer rounded-md px-2 py-1 text-sm font-semibold text-zinc-400 transition duration-75 hover:bg-zinc-700/70 hover:text-zinc-100 focus:outline-none focus:ring-4 focus:ring-cyan-300/25"
+                type="button"
+                onClick={startPageNumberEdit}
+                disabled={!numPages}
+                title="Jump to page"
+              >
+                Page {pageNumber} of {numPages ?? "-"}
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">

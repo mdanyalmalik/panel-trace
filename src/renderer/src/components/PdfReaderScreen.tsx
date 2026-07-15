@@ -61,6 +61,8 @@ const isTextInputTarget = (target: EventTarget | null): boolean => {
 const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX.Element => {
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [isEditingPageNumber, setIsEditingPageNumber] = useState(false);
+  const [pageNumberInput, setPageNumberInput] = useState("1");
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageWidth, setPageWidth] = useState(720);
   const [pageHeight, setPageHeight] = useState<number | null>(null);
@@ -106,6 +108,34 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
 
       return Math.min(numPages, currentPage + 1);
     });
+  };
+
+  const jumpToPage = (nextPage: number): void => {
+    if (!numPages) {
+      return;
+    }
+
+    setPageNumber(Math.min(numPages, Math.max(1, nextPage)));
+  };
+
+  const startPageNumberEdit = (): void => {
+    setPageNumberInput(String(pageNumber));
+    setIsEditingPageNumber(true);
+  };
+
+  const commitPageNumberEdit = (): void => {
+    const nextPage = Number.parseInt(pageNumberInput, 10);
+
+    if (Number.isFinite(nextPage)) {
+      jumpToPage(nextPage);
+    }
+
+    setIsEditingPageNumber(false);
+  };
+
+  const cancelPageNumberEdit = (): void => {
+    setPageNumberInput(String(pageNumber));
+    setIsEditingPageNumber(false);
   };
 
   const zoomOut = (): void => {
@@ -213,11 +243,19 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
     }
   };
 
+  const clearChat = (): void => {
+    setMessages([]);
+    setInput("");
+    setChatError(null);
+  };
+
   useEffect(() => {
     let isMounted = true;
 
     setPdfData(null);
     setPageNumber(1);
+    setIsEditingPageNumber(false);
+    setPageNumberInput("1");
     setNumPages(null);
     setPageHeight(null);
     setZoom(100);
@@ -445,9 +483,44 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
           >
             Previous
           </button>
-          <span className="min-w-20 text-center text-sm font-semibold text-zinc-300 sm:min-w-24">
-            Page {pageNumber} of {numPages ?? "-"}
-          </span>
+          {isEditingPageNumber ? (
+            <label className="flex min-w-28 items-center justify-center gap-1 text-sm font-semibold text-zinc-300">
+              <span>Page</span>
+              <input
+                className="h-9 w-16 rounded-md border border-teal-400 bg-zinc-950 px-2 text-center text-zinc-100 outline-none focus:ring-4 focus:ring-teal-400/20"
+                type="number"
+                min={1}
+                max={numPages ?? undefined}
+                value={pageNumberInput}
+                autoFocus
+                onChange={(event) => setPageNumberInput(event.target.value)}
+                onBlur={commitPageNumberEdit}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitPageNumberEdit();
+                    return;
+                  }
+
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    cancelPageNumberEdit();
+                  }
+                }}
+              />
+              <span>of {numPages ?? "-"}</span>
+            </label>
+          ) : (
+            <button
+              className="min-w-28 cursor-pointer rounded-md px-2 py-2 text-center text-sm font-semibold text-zinc-300 transition duration-75 hover:bg-zinc-700/70 hover:text-zinc-100 focus:outline-none focus:ring-4 focus:ring-cyan-300/25"
+              type="button"
+              onClick={startPageNumberEdit}
+              disabled={!numPages}
+              title="Jump to page"
+            >
+              Page {pageNumber} of {numPages ?? "-"}
+            </button>
+          )}
           <button
             className="cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-sm font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0 sm:px-4 sm:py-3 sm:text-base"
             type="button"
@@ -598,6 +671,7 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
               isSending={isSending}
               error={chatError}
               isSearching={isSending}
+              onClearChat={clearChat}
               onInputChange={setInput}
               onOpenEvidence={openEvidence}
               onSend={sendMessage}
