@@ -9,18 +9,27 @@ import { FolderIndexingService } from "./services/folderIndexingService";
 import { IndexingQueue } from "./services/indexingQueue";
 import { getProgressForPdfs } from "./services/pageIndexStore";
 import { PdfPageRenderer } from "./services/pdfPageRenderer";
+import { testGeminiConnection } from "./services/reasoningProviders";
+import { ReasoningService } from "./services/reasoningService";
 import { searchEarlierPages } from "./services/retrievalService";
 import {
+  getGeminiKeyStatus,
   getVoyageKeyStatus,
+  loadGeminiApiKey,
+  removeGeminiApiKey,
   removeVoyageApiKey,
+  saveGeminiApiKey,
   saveVoyageApiKey
 } from "./services/secureCredentialStore";
 import { testVoyageConnection } from "./services/voyageEmbeddingService";
 import type { OpenEvidenceRequest, RetrievalRequest } from "../shared/retrieval";
+import type { ReasoningChatRequest } from "../shared/reasoning";
 
 let indexingQueue: IndexingQueue | null = null;
 let folderIndexingService: FolderIndexingService | null = null;
 let evidenceWindowService: EvidenceWindowService | null = null;
+let pdfPageRenderer: PdfPageRenderer | null = null;
+let reasoningService: ReasoningService | null = null;
 const mainDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 const startFolderIndexing = (folderPath: string): void => {
@@ -128,6 +137,31 @@ const registerIpcHandlers = (): void => {
     searchEarlierPages(app.getPath("userData"), request)
   );
 
+  ipcMain.handle("reasoning:gemini-key-status", () =>
+    getGeminiKeyStatus(app.getPath("userData"))
+  );
+
+  ipcMain.handle("reasoning:save-gemini-api-key", (_event, apiKey: string) =>
+    saveGeminiApiKey(app.getPath("userData"), apiKey)
+  );
+
+  ipcMain.handle("reasoning:remove-gemini-api-key", () =>
+    removeGeminiApiKey(app.getPath("userData"))
+  );
+
+  ipcMain.handle("reasoning:test-gemini-connection", async (_event, apiKey?: string) => {
+    const keyToTest = apiKey?.trim() || (await loadGeminiApiKey(app.getPath("userData")));
+    return testGeminiConnection(keyToTest ?? "");
+  });
+
+  ipcMain.handle("reasoning:ask-provider", (_event, request: ReasoningChatRequest) => {
+    if (!reasoningService) {
+      throw new Error("Reasoning service is not ready.");
+    }
+
+    return reasoningService.answerQuestion(request);
+  });
+
   ipcMain.handle("evidence:open-viewer", (_event, request: OpenEvidenceRequest) =>
     evidenceWindowService?.openEvidence(request)
   );
@@ -140,12 +174,14 @@ const registerIpcHandlers = (): void => {
 };
 
 app.whenReady().then(() => {
-  indexingQueue = new IndexingQueue(app.getPath("userData"), new PdfPageRenderer());
+  pdfPageRenderer = new PdfPageRenderer();
+  indexingQueue = new IndexingQueue(app.getPath("userData"), pdfPageRenderer);
   folderIndexingService = new FolderIndexingService(
     app.getPath("userData"),
     indexingQueue
   );
   evidenceWindowService = new EvidenceWindowService(app.getPath("userData"), mainDirectory);
+  reasoningService = new ReasoningService(app.getPath("userData"), pdfPageRenderer);
   registerIpcHandlers();
   createWindow();
   startSavedFolderIndexing();
@@ -159,6 +195,7 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   indexingQueue?.destroy();
+  pdfPageRenderer?.destroy();
 });
 
 app.on("window-all-closed", () => {

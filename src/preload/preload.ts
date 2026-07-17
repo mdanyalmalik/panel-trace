@@ -32,6 +32,14 @@ const electronAPI: ElectronAPI = {
   },
   searchEarlierPages: (request) =>
     ipcRenderer.invoke("retrieval:search-earlier-pages", request),
+  getGeminiKeyStatus: () => ipcRenderer.invoke("reasoning:gemini-key-status"),
+  saveGeminiApiKey: (apiKey) =>
+    ipcRenderer.invoke("reasoning:save-gemini-api-key", apiKey),
+  removeGeminiApiKey: () => ipcRenderer.invoke("reasoning:remove-gemini-api-key"),
+  testGeminiConnection: (apiKey) =>
+    ipcRenderer.invoke("reasoning:test-gemini-connection", apiKey),
+  askReasoningProvider: (request) =>
+    ipcRenderer.invoke("reasoning:ask-provider", request),
   openEvidenceViewer: (request) => ipcRenderer.invoke("evidence:open-viewer", request),
   getEvidenceViewerState: () => ipcRenderer.invoke("evidence:get-state"),
   exitApp: () => {

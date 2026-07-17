@@ -11,6 +11,7 @@ interface BaseChatMessage {
 
 export interface UserChatMessage extends BaseChatMessage {
   role: "user";
+  pageNumber?: number;
 }
 
 export interface SystemChatMessage extends BaseChatMessage {
@@ -28,11 +29,18 @@ export interface EvidenceChatMessage extends BaseChatMessage {
   evidence: RetrievalResult[];
 }
 
+export interface ReasoningAnswerChatMessage extends BaseChatMessage {
+  role: "assistant";
+  kind: "reasoning-answer";
+  evidence: RetrievalResult[];
+}
+
 export type ChatMessage =
   | UserChatMessage
   | SystemChatMessage
   | AssistantTextChatMessage
-  | EvidenceChatMessage;
+  | EvidenceChatMessage
+  | ReasoningAnswerChatMessage;
 
 export interface ChatRequest {
   messages: ChatMessage[];

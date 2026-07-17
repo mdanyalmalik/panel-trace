@@ -2,13 +2,18 @@ import { safeStorage } from "electron";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import type { GeminiKeyStatus } from "../../shared/reasoning";
 import type { VoyageKeyStatus } from "../../shared/voyage";
 
 const secretsDirectoryName = "secrets";
 const voyageApiKeyFileName = "voyage-api-key.bin";
+const geminiApiKeyFileName = "gemini-api-key.bin";
 
 const getVoyageKeyPath = (userDataPath: string): string =>
   path.join(userDataPath, secretsDirectoryName, voyageApiKeyFileName);
+
+const getGeminiKeyPath = (userDataPath: string): string =>
+  path.join(userDataPath, secretsDirectoryName, geminiApiKeyFileName);
 
 export const getVoyageKeyStatus = async (
   userDataPath: string
@@ -77,4 +82,73 @@ export const removeVoyageApiKey = async (
 ): Promise<VoyageKeyStatus> => {
   await rm(getVoyageKeyPath(userDataPath), { force: true });
   return getVoyageKeyStatus(userDataPath);
+};
+
+export const getGeminiKeyStatus = async (
+  userDataPath: string
+): Promise<GeminiKeyStatus> => {
+  const secureStorageAvailable = safeStorage.isEncryptionAvailable();
+
+  try {
+    await readFile(getGeminiKeyPath(userDataPath));
+    return {
+      configured: true,
+      secureStorageAvailable
+    };
+  } catch (error) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code !== "ENOENT") {
+      console.error("Unable to read Gemini key status:", error);
+    }
+
+    return {
+      configured: false,
+      secureStorageAvailable
+    };
+  }
+};
+
+export const saveGeminiApiKey = async (
+  userDataPath: string,
+  apiKey: string
+): Promise<GeminiKeyStatus> => {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error("Secure credential storage is unavailable on this system.");
+  }
+
+  const trimmedApiKey = apiKey.trim();
+  if (!trimmedApiKey) {
+    throw new Error("Gemini API key is required.");
+  }
+
+  const keyFilePath = getGeminiKeyPath(userDataPath);
+  await mkdir(path.dirname(keyFilePath), { recursive: true });
+  await writeFile(keyFilePath, safeStorage.encryptString(trimmedApiKey));
+
+  return getGeminiKeyStatus(userDataPath);
+};
+
+export const loadGeminiApiKey = async (userDataPath: string): Promise<string | null> => {
+  if (!safeStorage.isEncryptionAvailable()) {
+    return null;
+  }
+
+  try {
+    const encryptedKey = await readFile(getGeminiKeyPath(userDataPath));
+    return safeStorage.decryptString(encryptedKey);
+  } catch (error) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code !== "ENOENT") {
+      console.error("Unable to load Gemini API key:", error);
+    }
+
+    return null;
+  }
+};
+
+export const removeGeminiApiKey = async (
+  userDataPath: string
+): Promise<GeminiKeyStatus> => {
+  await rm(getGeminiKeyPath(userDataPath), { force: true });
+  return getGeminiKeyStatus(userDataPath);
 };

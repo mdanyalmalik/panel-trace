@@ -79,6 +79,13 @@ export const validateEvidenceRequest = async (
   }
 
   if (
+    normalizePath(targetPdf.path) === normalizePath(request.sourcePdfPath) &&
+    request.targetPage === request.sourceCurrentPage
+  ) {
+    return targetPdf;
+  }
+
+  if (
     !isEligiblePage(
       targetPdf.path,
       request.targetPage,

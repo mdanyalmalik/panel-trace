@@ -30,12 +30,14 @@ export class EvidenceWindowService {
       throw new Error("Evidence request is outside the spoiler boundary.");
     }
 
+    const isCurrentPageRequest =
+      path.normalize(targetPdf.path) === path.normalize(request.sourcePdfPath) &&
+      request.targetPage === request.sourceCurrentPage;
     const readyRecord = await getReadyDocumentByPath(this.userDataPath, targetPdf.path);
 
     if (
-      !readyRecord ||
-      !readyRecord.pageCount ||
-      request.targetPage > readyRecord.pageCount
+      !isCurrentPageRequest &&
+      (!readyRecord || !readyRecord.pageCount || request.targetPage > readyRecord.pageCount)
     ) {
       throw new Error("Evidence target is not ready.");
     }

@@ -19,6 +19,13 @@ build/
 .vite/
 node_modules/.vite/
 
+# Accidental local app data exports
+secrets/
+indexes/
+library.json
+*.sqlite
+*.sqlite3
+
 # Logs
 *.log
 npm-debug.log*

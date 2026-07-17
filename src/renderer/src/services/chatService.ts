@@ -2,7 +2,11 @@ import type { ChatMessage, ChatResponse, ChatService } from "../types/chat";
 
 export const chatService: ChatService = {
   async sendMessage(request): Promise<ChatResponse> {
-    const response = await window.electronAPI.searchEarlierPages({
+    const response = await window.electronAPI.askReasoningProvider({
+      messages: request.messages.map((message) => ({
+        role: message.role,
+        content: message.content
+      })),
       folderPath: request.folderPath,
       currentPdfPath: request.currentPdfPath,
       currentPage: request.currentPage,
@@ -12,9 +16,9 @@ export const chatService: ChatService = {
     const message: ChatMessage = {
       id: crypto.randomUUID(),
       role: "assistant",
-      kind: "evidence-results",
-      content: response.message ?? "Relevant earlier pages",
-      evidence: response.results,
+      kind: "reasoning-answer",
+      content: response.markdown,
+      evidence: response.evidence,
       createdAt: new Date().toISOString()
     };
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { FileTextIcon, SearchIcon } from "./icons";
+import MarkdownMessage from "./MarkdownMessage";
 import type { ChatMessage } from "../types/chat";
 import type { RetrievalResult } from "../../../shared/retrieval";
 
@@ -23,7 +24,7 @@ const ChatMessageList = ({
 
   return (
     <div
-      className="min-h-0 flex-1 overflow-y-auto px-4 py-4"
+      className="pdf-scroll-surface min-h-0 flex-1 overflow-y-auto px-4 py-4"
       role="log"
       aria-live="polite"
       aria-label="Chat history"
@@ -78,20 +79,41 @@ const ChatMessageList = ({
             );
           }
 
+          if (message.role === "assistant" && message.kind === "reasoning-answer") {
+            return (
+              <div key={message.id} className="flex max-w-full justify-start">
+                <div className="max-w-[92%] rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-sm leading-6 text-zinc-100 shadow-lg shadow-zinc-950/15">
+                  <MarkdownMessage
+                    markdown={message.content}
+                    evidence={message.evidence}
+                    onOpenEvidence={onOpenEvidence}
+                  />
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div
               key={message.id}
               className={`flex max-w-full ${isUser ? "justify-end" : "justify-start"}`}
             >
-              <p
-                className={`max-w-[88%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-6 shadow-sm ${
-                  isUser
-                    ? "bg-teal-500 text-zinc-950"
-                    : "border border-zinc-700 bg-zinc-900 text-zinc-100"
-                }`}
-              >
-                {message.content}
-              </p>
+              <div className={`max-w-[88%] ${isUser ? "items-start" : ""}`}>
+                {isUser && message.pageNumber ? (
+                  <span className="mb-1 block text-left text-[11px] font-bold uppercase text-teal-200/80">
+                    Page {message.pageNumber}
+                  </span>
+                ) : null}
+                <p
+                  className={`whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-6 shadow-sm ${
+                    isUser
+                      ? "bg-teal-500 text-zinc-950"
+                      : "border border-zinc-700 bg-zinc-900 text-zinc-100"
+                  }`}
+                >
+                  {message.content}
+                </p>
+              </div>
             </div>
           );
         })}

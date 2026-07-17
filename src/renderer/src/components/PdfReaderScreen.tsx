@@ -206,6 +206,7 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
       id: crypto.randomUUID(),
       role: "user",
       content,
+      pageNumber,
       createdAt: new Date().toISOString()
     };
     const nextMessages = [...messages, userMessage];

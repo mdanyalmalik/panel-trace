@@ -1,5 +1,11 @@
 import type { PdfIndexProgress } from "./indexing";
 import type {
+  GeminiConnectionTestResult,
+  GeminiKeyStatus,
+  ReasoningChatRequest,
+  ReasoningChatResponse
+} from "./reasoning";
+import type {
   EvidenceViewerState,
   OpenEvidenceRequest,
   RetrievalRequest,
@@ -28,6 +34,11 @@ export interface ElectronAPI {
   retryPdfIndex: (pdfPath: string) => Promise<void>;
   onPdfIndexProgress: (callback: (progress: PdfIndexProgress) => void) => () => void;
   searchEarlierPages: (request: RetrievalRequest) => Promise<RetrievalResponse>;
+  getGeminiKeyStatus: () => Promise<GeminiKeyStatus>;
+  saveGeminiApiKey: (apiKey: string) => Promise<GeminiKeyStatus>;
+  removeGeminiApiKey: () => Promise<GeminiKeyStatus>;
+  testGeminiConnection: (apiKey?: string) => Promise<GeminiConnectionTestResult>;
+  askReasoningProvider: (request: ReasoningChatRequest) => Promise<ReasoningChatResponse>;
   openEvidenceViewer: (request: OpenEvidenceRequest) => Promise<void>;
   getEvidenceViewerState: () => Promise<EvidenceViewerState | null>;
   exitApp: () => void;
