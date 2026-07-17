@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 
+import { FileTextIcon, SearchIcon } from "./icons";
 import type { ChatMessage } from "../types/chat";
 import type { RetrievalResult } from "../../../shared/retrieval";
 
@@ -45,8 +46,9 @@ const ChatMessageList = ({
           if (message.role === "assistant" && message.kind === "evidence-results") {
             return (
               <div key={message.id} className="flex max-w-full justify-start">
-                <div className="max-w-[92%] rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-3 text-sm text-zinc-100 shadow-sm">
-                  <p className="mb-3 font-bold text-zinc-100">
+                <div className="max-w-[92%] rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-sm text-zinc-100 shadow-lg shadow-zinc-950/15">
+                  <p className="mb-3 flex items-center gap-2 font-bold text-zinc-100">
+                    <SearchIcon className="size-4 text-teal-200" />
                     {message.evidence.length > 0 ? "Relevant earlier pages" : message.content}
                   </p>
                   {message.evidence.length > 0 ? (
@@ -54,15 +56,18 @@ const ChatMessageList = ({
                       {message.evidence.map((result) => (
                         <button
                           key={result.id}
-                          className="cursor-pointer rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-left transition duration-75 hover:-translate-y-0.5 hover:border-teal-400 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-teal-400/20 active:translate-y-0"
+                          className="flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-left transition duration-75 hover:-translate-y-0.5 hover:border-teal-300/70 hover:bg-zinc-900 focus:outline-none focus:ring-4 focus:ring-teal-400/20 active:translate-y-0"
                           type="button"
                           onClick={() => onOpenEvidence(result)}
                         >
-                          <span className="block font-semibold text-zinc-100">
-                            {result.pdfName} - Page {result.pageNumber}
-                          </span>
-                          <span className="mt-1 block text-xs font-medium text-zinc-400">
-                            Similarity: {result.score.toFixed(3)}
+                          <FileTextIcon className="mt-0.5 size-4 shrink-0 text-cyan-200" />
+                          <span className="min-w-0">
+                            <span className="block break-words font-semibold text-zinc-100">
+                              {result.pdfName} - Page {result.pageNumber}
+                            </span>
+                            <span className="mt-1 block text-xs font-medium text-zinc-400">
+                              Similarity: {result.score.toFixed(3)}
+                            </span>
                           </span>
                         </button>
                       ))}
@@ -79,10 +84,10 @@ const ChatMessageList = ({
               className={`flex max-w-full ${isUser ? "justify-end" : "justify-start"}`}
             >
               <p
-                className={`max-w-[88%] whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-sm leading-6 shadow-sm ${
+                className={`max-w-[88%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-6 shadow-sm ${
                   isUser
-                    ? "bg-teal-700 text-teal-50"
-                    : "border border-zinc-700 bg-zinc-800 text-zinc-100"
+                    ? "bg-teal-500 text-zinc-950"
+                    : "border border-zinc-700 bg-zinc-900 text-zinc-100"
                 }`}
               >
                 {message.content}
@@ -92,7 +97,8 @@ const ChatMessageList = ({
         })}
         {isSearching ? (
           <div className="flex max-w-full justify-start">
-            <p className="max-w-[88%] rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm leading-6 text-zinc-400 shadow-sm">
+            <p className="flex max-w-[88%] items-center gap-2 rounded-2xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm leading-6 text-zinc-400 shadow-sm">
+              <SearchIcon className="size-4 animate-pulse text-teal-200" />
               Searching earlier pages...
             </p>
           </div>

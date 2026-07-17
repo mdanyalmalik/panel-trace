@@ -1,5 +1,6 @@
 import ChatInput from "./ChatInput";
 import ChatMessageList from "./ChatMessageList";
+import { MessageSquareIcon, TrashIcon } from "./icons";
 import type { ChatMessage } from "../types/chat";
 import type { RetrievalResult } from "../../../shared/retrieval";
 
@@ -27,17 +28,21 @@ const ReaderChatPanel = ({
   onSend
 }: ReaderChatPanelProps): JSX.Element => (
   <aside
-    className="flex h-full min-h-0 w-full shrink-0 flex-col border-l border-zinc-700 bg-zinc-900"
+    className="flex h-full min-h-0 w-full shrink-0 flex-col border-l border-zinc-700 bg-zinc-950/95 shadow-2xl shadow-zinc-950/30"
     aria-label="Reader chat"
   >
-    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-700 px-4 py-3">
-      <h2 className="text-sm font-bold text-zinc-100">Chat</h2>
+    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-zinc-100">
+        <MessageSquareIcon className="size-4 text-teal-200" />
+        Chat
+      </h2>
       <button
-        className="cursor-pointer rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs font-bold text-zinc-300 transition duration-75 hover:-translate-y-0.5 hover:border-red-300/60 hover:bg-red-500/10 hover:text-red-100 focus:outline-none focus:ring-4 focus:ring-red-300/15 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0"
+        className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs font-bold text-zinc-300 transition duration-75 hover:-translate-y-0.5 hover:border-red-300/60 hover:bg-red-500/10 hover:text-red-100 focus:outline-none focus:ring-4 focus:ring-red-300/15 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0"
         type="button"
         onClick={onClearChat}
         disabled={messages.length === 0 || isSending}
       >
+        <TrashIcon className="size-3.5" />
         Clear
       </button>
     </div>

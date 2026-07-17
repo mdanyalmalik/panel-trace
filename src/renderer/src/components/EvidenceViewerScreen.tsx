@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  MinusIcon,
+  PlusIcon,
+  XIcon
+} from "./icons";
 import type { EvidenceViewerState } from "../../../shared/retrieval";
 import type { PageProps } from "react-pdf";
 
@@ -222,13 +229,14 @@ const EvidenceViewerScreen = (): JSX.Element => {
   }, []);
 
   return (
-    <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-zinc-800 px-3 py-4 text-zinc-100 sm:px-6">
+    <main className="flex h-dvh min-h-0 flex-col overflow-hidden px-3 py-4 text-zinc-100 sm:px-6">
       <header className="mx-auto mb-4 grid w-full max-w-6xl shrink-0 grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
         <button
-          className="w-fit cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
+          className="flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900/70 px-4 py-2.5 font-semibold text-zinc-100 shadow-lg shadow-zinc-950/15 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
           type="button"
           onClick={() => window.close()}
         >
+          <XIcon className="size-4" />
           Close
         </button>
 
@@ -266,7 +274,7 @@ const EvidenceViewerScreen = (): JSX.Element => {
               </label>
             ) : (
               <button
-                className="cursor-pointer rounded-md px-2 py-1 text-sm font-semibold text-zinc-400 transition duration-75 hover:bg-zinc-700/70 hover:text-zinc-100 focus:outline-none focus:ring-4 focus:ring-cyan-300/25"
+                className="cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-1.5 text-sm font-semibold text-zinc-400 transition duration-75 hover:border-teal-300/50 hover:bg-zinc-800 hover:text-zinc-100 focus:outline-none focus:ring-4 focus:ring-cyan-300/25"
                 type="button"
                 onClick={startPageNumberEdit}
                 disabled={!numPages}
@@ -280,30 +288,32 @@ const EvidenceViewerScreen = (): JSX.Element => {
 
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           <button
-            className="cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-sm font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0"
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-zinc-100 shadow-lg shadow-zinc-950/10 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0"
             type="button"
             onClick={goPrevious}
             disabled={!canGoPrevious}
           >
-            Previous
+            <ArrowLeftIcon className="size-4" />
+            <span className="hidden sm:inline">Previous</span>
           </button>
           <button
-            className="cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-sm font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0"
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-zinc-100 shadow-lg shadow-zinc-950/10 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0"
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
           >
-            Next
+            <span className="hidden sm:inline">Next</span>
+            <ArrowRightIcon className="size-4" />
           </button>
-          <div className="flex w-full items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 sm:w-72">
+          <div className="flex w-full items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900/70 px-3 py-2 shadow-lg shadow-zinc-950/10 sm:w-72">
             <button
-              className="grid size-8 cursor-pointer place-items-center rounded-md border border-zinc-600 bg-zinc-700 text-lg font-bold leading-none text-zinc-100 transition duration-75 hover:bg-zinc-600 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 disabled:cursor-default disabled:opacity-50"
+              className="grid size-8 cursor-pointer place-items-center rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-100 transition duration-75 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 disabled:cursor-default disabled:opacity-50"
               type="button"
               onClick={zoomOut}
               disabled={zoom <= minZoom}
               aria-label="Zoom out"
             >
-              -
+              <MinusIcon className="size-4" />
             </button>
             <input
               className="min-w-0 flex-1 cursor-pointer accent-teal-400"
@@ -316,13 +326,13 @@ const EvidenceViewerScreen = (): JSX.Element => {
               aria-label="PDF zoom"
             />
             <button
-              className="grid size-8 cursor-pointer place-items-center rounded-md border border-zinc-600 bg-zinc-700 text-lg font-bold leading-none text-zinc-100 transition duration-75 hover:bg-zinc-600 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 disabled:cursor-default disabled:opacity-50"
+              className="grid size-8 cursor-pointer place-items-center rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-100 transition duration-75 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 disabled:cursor-default disabled:opacity-50"
               type="button"
               onClick={zoomIn}
               disabled={zoom >= maxZoom}
               aria-label="Zoom in"
             >
-              +
+              <PlusIcon className="size-4" />
             </button>
             <span className="w-12 text-right text-sm font-semibold text-zinc-300">
               {zoom}%
@@ -333,7 +343,7 @@ const EvidenceViewerScreen = (): JSX.Element => {
 
       <section
         ref={readerRef}
-        className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 items-start justify-center overflow-auto bg-zinc-800 p-1 sm:p-2"
+        className="pdf-scroll-surface mx-auto flex min-h-0 w-full max-w-6xl flex-1 items-start justify-center overflow-auto rounded-2xl border border-zinc-800/80 bg-zinc-900/35 p-1 shadow-inner shadow-zinc-950/20 sm:p-2"
         aria-label="Evidence PDF viewer"
       >
         {isLoading ? <p className="mt-16 text-zinc-400">Loading evidence...</p> : null}

@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
 
+import {
+  ArrowLeftIcon,
+  CheckCircleIcon,
+  EyeIcon,
+  EyeOffIcon,
+  RefreshIcon,
+  SaveIcon,
+  TrashIcon
+} from "./icons";
 import type { VoyageKeyStatus } from "../../../shared/voyage";
 
 interface SettingsScreenProps {
@@ -116,27 +125,33 @@ const SettingsScreen = ({ onBack }: SettingsScreenProps): JSX.Element => {
   const isBusy = isSaving || isTesting || isRemoving || isLoadingStatus;
 
   return (
-    <main className="min-h-dvh w-full overflow-x-hidden bg-zinc-800 px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
+    <main className="min-h-dvh w-full overflow-x-hidden px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
       <header className="mx-auto mb-8 grid w-full max-w-4xl grid-cols-1 items-center gap-5 sm:grid-cols-[minmax(84px,1fr)_auto_minmax(84px,1fr)]">
         <button
-          className="cursor-pointer justify-self-start rounded-lg border border-zinc-600 bg-zinc-700/70 px-5 py-3 font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-600 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
+          className="flex cursor-pointer items-center gap-2 justify-self-start rounded-xl border border-zinc-700 bg-zinc-900/70 px-4 py-2.5 font-semibold text-zinc-100 shadow-lg shadow-zinc-950/15 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
           type="button"
           onClick={onBack}
         >
+          <ArrowLeftIcon className="size-4" />
           Back
         </button>
-        <h1 className="row-start-1 text-center text-3xl font-bold text-zinc-50 sm:row-auto">
+        <h1 className="row-start-1 text-center text-3xl font-black text-zinc-50 sm:row-auto">
           Settings
         </h1>
         <span className="hidden sm:block" aria-hidden="true" />
       </header>
 
       <section className="mx-auto w-full max-w-4xl" aria-labelledby="voyage-heading">
-        <div className="rounded-lg border border-zinc-700 bg-zinc-900/65 p-5 shadow-lg shadow-zinc-950/20 sm:p-6">
+        <div className="rounded-2xl border border-zinc-700 bg-zinc-950/70 p-5 shadow-2xl shadow-zinc-950/25 sm:p-6">
           <div className="mb-6">
-            <h2 id="voyage-heading" className="text-xl font-bold text-zinc-50">
-              Voyage AI
-            </h2>
+            <div className="flex items-center gap-3">
+              <span className="grid size-11 place-items-center rounded-xl border border-teal-300/20 bg-teal-400/10 text-teal-200">
+                <CheckCircleIcon className="size-5" />
+              </span>
+              <h2 id="voyage-heading" className="text-xl font-bold text-zinc-50">
+                Voyage AI
+              </h2>
+            </div>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
               Used to create local page embeddings for PDFs. The key is encrypted in
               the main process and is never shown again after saving.
@@ -157,37 +172,41 @@ const SettingsScreen = ({ onBack }: SettingsScreenProps): JSX.Element => {
               autoComplete="off"
             />
             <button
-              className="cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 px-5 py-3 font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-5 py-3 font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0"
               type="button"
               onClick={() => setShowKey((currentValue) => !currentValue)}
             >
+              {showKey ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
               {showKey ? "Hide" : "Show"}
             </button>
           </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <button
-              className="cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 px-5 py-3 font-bold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0"
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-5 py-3 font-bold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0"
               type="button"
               onClick={testConnection}
               disabled={isBusy || (!apiKey.trim() && !keyStatus.configured)}
             >
+              <RefreshIcon className="size-4" />
               {isTesting ? "Testing..." : "Test Connection"}
             </button>
             <button
-              className="cursor-pointer rounded-lg bg-teal-500 px-5 py-3 font-bold text-zinc-950 shadow-lg shadow-teal-950/25 transition duration-75 hover:-translate-y-0.5 hover:bg-teal-400 focus:outline-none focus:ring-4 focus:ring-cyan-300/35 active:translate-y-0 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0"
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-teal-300/30 bg-teal-400 px-5 py-3 font-black text-zinc-950 shadow-xl shadow-teal-950/25 transition duration-75 hover:-translate-y-0.5 hover:bg-teal-300 focus:outline-none focus:ring-4 focus:ring-cyan-300/35 active:translate-y-0 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0"
               type="button"
               onClick={saveKey}
               disabled={isBusy || !keyStatus.secureStorageAvailable}
             >
+              <SaveIcon className="size-4" />
               {isSaving ? "Saving..." : "Save"}
             </button>
             <button
-              className="cursor-pointer rounded-lg border border-red-400/40 bg-red-500/10 px-5 py-3 font-bold text-red-200 transition duration-75 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-500/20 focus:outline-none focus:ring-4 focus:ring-red-300/20 active:translate-y-0 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0"
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-400/40 bg-red-500/10 px-5 py-3 font-bold text-red-200 transition duration-75 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-500/20 focus:outline-none focus:ring-4 focus:ring-red-300/20 active:translate-y-0 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0"
               type="button"
               onClick={removeKey}
               disabled={isBusy || (!keyStatus.configured && !apiKey)}
             >
+              <TrashIcon className="size-4" />
               {isRemoving ? "Removing..." : "Remove Key"}
             </button>
           </div>

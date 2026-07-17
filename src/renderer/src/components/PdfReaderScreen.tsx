@@ -3,6 +3,14 @@ import { Document, Page, pdfjs } from "react-pdf";
 
 import PdfIndexStatusBadge from "./PdfIndexStatusBadge";
 import ReaderChatPanel from "./ReaderChatPanel";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  MessageSquareIcon,
+  MinusIcon,
+  PlusIcon,
+  XIcon
+} from "./icons";
 import { loadChatHistory, saveChatHistory } from "../services/chatHistoryStore";
 import { chatService } from "../services/chatService";
 import type { ChatMessage } from "../types/chat";
@@ -34,6 +42,8 @@ const zoomStep = 10;
 const chatDefaultWidth = 360;
 const chatMinWidth = 240;
 const chatMaxWidth = 560;
+const chatTransitionDurationMs = 200;
+const pageResizeSettleDelayMs = chatTransitionDurationMs + 40;
 const minReaderWidth = 320;
 
 const clampZoom = (zoomValue: number): number =>
@@ -81,6 +91,7 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
   const readerShellRef = useRef<HTMLDivElement | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
   const chatPanelRef = useRef<HTMLDivElement | null>(null);
+  const pageResizeTimeoutRef = useRef<number | null>(null);
 
   const canGoPrevious = pageNumber > 1;
   const canGoNext = numPages !== null && pageNumber < numPages;
@@ -352,17 +363,37 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
   useEffect(() => {
     const updateWidth = (): void => {
       const containerWidth = readerRef.current?.clientWidth ?? maxPageWidth;
-      setPageWidth(Math.max(280, Math.min(maxPageWidth, containerWidth - pagePadding)));
+      const nextPageWidth = Math.max(280, Math.min(maxPageWidth, containerWidth - pagePadding));
+
+      setPageWidth((currentPageWidth) =>
+        currentPageWidth === nextPageWidth ? currentPageWidth : nextPageWidth
+      );
+    };
+
+    const scheduleWidthUpdate = (): void => {
+      if (pageResizeTimeoutRef.current !== null) {
+        window.clearTimeout(pageResizeTimeoutRef.current);
+      }
+
+      pageResizeTimeoutRef.current = window.setTimeout(() => {
+        pageResizeTimeoutRef.current = null;
+        updateWidth();
+      }, pageResizeSettleDelayMs);
     };
 
     updateWidth();
 
-    const resizeObserver = new ResizeObserver(updateWidth);
+    const resizeObserver = new ResizeObserver(scheduleWidthUpdate);
     if (readerRef.current) {
       resizeObserver.observe(readerRef.current);
     }
 
     return () => {
+      if (pageResizeTimeoutRef.current !== null) {
+        window.clearTimeout(pageResizeTimeoutRef.current);
+        pageResizeTimeoutRef.current = null;
+      }
+
       resizeObserver.disconnect();
     };
   }, []);
@@ -452,13 +483,14 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
   };
 
   return (
-    <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-zinc-800 px-3 py-4 text-zinc-100 sm:px-6 lg:px-8">
+    <main className="flex h-dvh min-h-0 flex-col overflow-hidden px-3 py-4 text-zinc-100 sm:px-6 lg:px-8">
       <header className="mx-auto mb-4 grid w-full max-w-7xl shrink-0 grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
         <button
-          className="w-fit cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 sm:px-5 sm:py-3"
+          className="flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900/70 px-4 py-2.5 font-semibold text-zinc-100 shadow-lg shadow-zinc-950/15 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 sm:px-5"
           type="button"
           onClick={onBack}
         >
+          <ArrowLeftIcon className="size-4" />
           Back
         </button>
 
@@ -476,12 +508,13 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
           <button
-            className="cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-sm font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0 sm:px-4 sm:py-3 sm:text-base"
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-zinc-100 shadow-lg shadow-zinc-950/10 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0 sm:px-4 sm:text-base"
             type="button"
             onClick={goPrevious}
             disabled={!canGoPrevious}
           >
-            Previous
+            <ArrowLeftIcon className="size-4" />
+            <span className="hidden sm:inline">Previous</span>
           </button>
           {isEditingPageNumber ? (
             <label className="flex min-w-28 items-center justify-center gap-1 text-sm font-semibold text-zinc-300">
@@ -512,7 +545,7 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
             </label>
           ) : (
             <button
-              className="min-w-28 cursor-pointer rounded-md px-2 py-2 text-center text-sm font-semibold text-zinc-300 transition duration-75 hover:bg-zinc-700/70 hover:text-zinc-100 focus:outline-none focus:ring-4 focus:ring-cyan-300/25"
+              className="min-w-28 cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-center text-sm font-semibold text-zinc-300 transition duration-75 hover:border-teal-300/50 hover:bg-zinc-800 hover:text-zinc-100 focus:outline-none focus:ring-4 focus:ring-cyan-300/25"
               type="button"
               onClick={startPageNumberEdit}
               disabled={!numPages}
@@ -522,23 +555,24 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
             </button>
           )}
           <button
-            className="cursor-pointer rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-sm font-semibold text-zinc-100 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0 sm:px-4 sm:py-3 sm:text-base"
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900/70 px-3 py-2.5 text-sm font-semibold text-zinc-100 shadow-lg shadow-zinc-950/10 transition duration-75 hover:-translate-y-0.5 hover:border-zinc-500 hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 active:translate-y-0 disabled:cursor-default disabled:opacity-50 disabled:hover:translate-y-0 sm:px-4 sm:text-base"
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
           >
-            Next
+            <span className="hidden sm:inline">Next</span>
+            <ArrowRightIcon className="size-4" />
           </button>
 
-          <div className="flex w-full items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2 sm:w-72">
+          <div className="flex w-full items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900/70 px-3 py-2 shadow-lg shadow-zinc-950/10 sm:w-72">
             <button
-              className="grid size-8 cursor-pointer place-items-center rounded-md border border-zinc-600 bg-zinc-700 text-lg font-bold leading-none text-zinc-100 transition duration-75 hover:bg-zinc-600 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 disabled:cursor-default disabled:opacity-50"
+              className="grid size-8 cursor-pointer place-items-center rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-100 transition duration-75 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 disabled:cursor-default disabled:opacity-50"
               type="button"
               onClick={zoomOut}
               disabled={zoom <= minZoom}
               aria-label="Zoom out"
             >
-              -
+              <MinusIcon className="size-4" />
             </button>
             <input
               className="min-w-0 flex-1 cursor-pointer accent-teal-400"
@@ -551,13 +585,13 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
               aria-label="PDF zoom"
             />
             <button
-              className="grid size-8 cursor-pointer place-items-center rounded-md border border-zinc-600 bg-zinc-700 text-lg font-bold leading-none text-zinc-100 transition duration-75 hover:bg-zinc-600 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 disabled:cursor-default disabled:opacity-50"
+              className="grid size-8 cursor-pointer place-items-center rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-100 transition duration-75 hover:bg-zinc-700 focus:outline-none focus:ring-4 focus:ring-cyan-300/25 disabled:cursor-default disabled:opacity-50"
               type="button"
               onClick={zoomIn}
               disabled={zoom >= maxZoom}
               aria-label="Zoom in"
             >
-              +
+              <PlusIcon className="size-4" />
             </button>
             <span className="w-12 text-right text-sm font-semibold text-zinc-300">
               {zoom}%
@@ -565,12 +599,13 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
           </div>
 
           <button
-            className="cursor-pointer rounded-lg border border-teal-600/70 bg-teal-700 px-3 py-2.5 text-sm font-semibold text-white transition duration-75 hover:-translate-y-0.5 hover:bg-teal-600 focus:outline-none focus:ring-4 focus:ring-teal-400/25 active:translate-y-0 sm:px-4 sm:py-3 sm:text-base"
+            className="flex cursor-pointer items-center gap-2 rounded-xl border border-teal-300/30 bg-teal-500 px-3 py-2.5 text-sm font-bold text-zinc-950 shadow-lg shadow-teal-950/20 transition duration-75 hover:-translate-y-0.5 hover:bg-teal-400 focus:outline-none focus:ring-4 focus:ring-teal-400/25 active:translate-y-0 sm:px-4 sm:text-base"
             type="button"
             onClick={toggleChat}
             aria-expanded={isChatOpen}
             aria-controls="reader-chat-panel"
           >
+            {isChatOpen ? <XIcon className="size-4" /> : <MessageSquareIcon className="size-4" />}
             {isChatOpen ? "Close Chat" : "Open Chat"}
           </button>
         </div>
@@ -584,7 +619,7 @@ const PdfReaderScreen = ({ folderPath, pdf, onBack }: PdfReaderScreenProps): JSX
       >
         <section
           ref={readerRef}
-          className="flex min-h-0 min-w-0 flex-1 items-start justify-center overflow-auto bg-zinc-800 p-1 sm:p-2"
+          className="pdf-scroll-surface flex min-h-0 min-w-0 flex-1 items-start justify-center overflow-auto rounded-2xl border border-zinc-800/80 bg-zinc-900/35 p-1 shadow-inner shadow-zinc-950/20 sm:p-2"
           aria-label="PDF reader"
         >
           {isLoading ? <p className="mt-16 text-zinc-400">Loading PDF...</p> : null}

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  background: #27272a;
+  background: #18181b;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -12,7 +12,9 @@
 }
 
 body {
-  background: #27272a;
+  background:
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.12), transparent 34rem),
+    linear-gradient(135deg, #18181b 0%, #27272a 50%, #18181b 100%);
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
@@ -20,7 +22,9 @@ body {
 
 #root {
   min-height: 100vh;
-  background: #27272a;
+  background:
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.12), transparent 34rem),
+    linear-gradient(135deg, #18181b 0%, #27272a 50%, #18181b 100%);
 }
 
 .react-pdf__Document,
@@ -32,4 +36,51 @@ body {
 .react-pdf__Page canvas {
   max-width: 100%;
   height: auto !important;
+}
+
+.chat-input-textarea {
+  scrollbar-width: none;
+}
+
+.chat-input-textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.pdf-scroll-surface {
+  scrollbar-color: rgba(45, 212, 191, 0.45) rgba(24, 24, 27, 0.35);
+  scrollbar-width: thin;
+}
+
+.pdf-scroll-surface::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.pdf-scroll-surface::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.35);
+  border-radius: 999px;
+}
+
+.pdf-scroll-surface::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(45, 212, 191, 0.72), rgba(8, 145, 178, 0.62));
+  border: 3px solid rgba(24, 24, 27, 0.35);
+  border-radius: 999px;
+}
+
+.pdf-scroll-surface::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(94, 234, 212, 0.9), rgba(6, 182, 212, 0.78));
+}
+
+.pdf-scroll-surface::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
 }

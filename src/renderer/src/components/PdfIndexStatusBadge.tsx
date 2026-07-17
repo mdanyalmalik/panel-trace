@@ -17,15 +17,15 @@ const statusLabel: Record<PdfIndexStatus, string> = {
 };
 
 const statusTone: Record<PdfIndexStatus, string> = {
-  "not-indexed": "border-zinc-600 bg-zinc-800 text-zinc-300",
+  "not-indexed": "border-zinc-600 bg-zinc-900 text-zinc-300",
   "waiting-for-api-key": "border-amber-400/40 bg-amber-400/10 text-amber-200",
   queued: "border-cyan-400/35 bg-cyan-400/10 text-cyan-200",
   indexing: "border-teal-400/40 bg-teal-400/10 text-teal-200",
   ready: "border-emerald-400/35 bg-emerald-400/10 text-emerald-200",
   failed: "border-red-400/40 bg-red-500/10 text-red-200",
-  cancelled: "border-zinc-500 bg-zinc-800 text-zinc-300",
+  cancelled: "border-zinc-500 bg-zinc-900 text-zinc-300",
   stale: "border-orange-400/40 bg-orange-400/10 text-orange-200",
-  missing: "border-zinc-500 bg-zinc-800 text-zinc-300"
+  missing: "border-zinc-500 bg-zinc-900 text-zinc-300"
 };
 
 export const getIndexProgressLabel = (progress: PdfIndexProgress | null): string => {
@@ -50,7 +50,7 @@ const PdfIndexStatusBadge = ({ progress }: PdfIndexStatusBadgeProps): JSX.Elemen
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-md border px-2.5 py-1 text-xs font-bold ${statusTone[status]}`}
+      className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-bold shadow-sm shadow-zinc-950/10 ${statusTone[status]}`}
     >
       {getIndexProgressLabel(progress)}
     </span>
